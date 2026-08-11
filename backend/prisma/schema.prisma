@@ -1,0 +1,869 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================================================
+// ENUMS
+// ======================================================
+
+enum UserRole {
+  OWNER
+  TENANT
+  TECHNICIAN
+  ADMIN
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT_BUILDING
+  COMMERCIAL
+  OFFICE
+  OTHER
+}
+
+enum PropertyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UnitStatus {
+  VACANT
+  OCCUPIED
+  MAINTENANCE
+  INACTIVE
+}
+
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  PENDING
+}
+
+enum MaintenanceCategory {
+  PLUMBING
+  ELECTRICAL
+  HEATING
+  HVAC
+  APPLIANCE
+  STRUCTURAL
+  WINDOW_DOOR
+  WATER_DAMAGE
+  OTHER
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum MaintenanceStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_PARTS
+  COMPLETED
+  CANCELLED
+  CLOSED
+}
+
+enum AiAnalysisSource {
+  TEXT
+  IMAGE
+  TEXT_IMAGE
+}
+
+enum AiSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  UNKNOWN
+}
+
+enum AiSafetyLevel {
+  NORMAL
+  CAUTION
+  URGENT
+}
+
+enum AiFeedbackUsefulness {
+  YES
+  NO
+}
+
+enum WorkOrderStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TechnicianAvailability {
+  AVAILABLE
+  BUSY
+  UNAVAILABLE
+}
+
+enum AttachmentKind {
+  REQUEST
+  COMPLETION_BEFORE
+  COMPLETION_AFTER
+  COMPLETION
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  MISSED
+}
+
+enum CostType {
+  LABOR
+  PARTS
+  MATERIAL
+  SERVICE
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AssetStatus {
+  ACTIVE
+  BROKEN
+  UNDER_MAINTENANCE
+  RETIRED
+}
+
+enum InspectionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ConditionStatus {
+  GOOD
+  FAIR
+  POOR
+  CRITICAL
+}
+
+enum NotificationType {
+  MAINTENANCE_REQUEST
+  REQUEST_ASSIGNED
+  APPOINTMENT
+  REQUEST_COMPLETED
+  GENERAL
+  MAINTENANCE_CREATED
+  MAINTENANCE_ASSIGNED
+  MAINTENANCE_REASSIGNED
+  MAINTENANCE_STARTED
+  MAINTENANCE_COMPLETED
+  MAINTENANCE_CLOSED
+  MAINTENANCE_CANCELLED
+  AI_ANALYSIS_COMPLETED
+  EXPENSE_SUBMITTED
+  EXPENSE_APPROVED
+  EXPENSE_REJECTED
+}
+
+enum AIMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ======================================================
+// USER
+// ======================================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner      Owner?
+  tenant     Tenant?
+  technician Technician?
+
+  maintenanceRequests MaintenanceRequest[]    @relation("ReportedBy")
+  attachments         MaintenanceAttachment[] @relation("UploadedBy")
+
+  aiConversations AIConversation[]
+
+  notifications Notification[]
+
+  auditLogs AuditLog[]
+
+  inspections Inspection[]
+
+  expensesCreated  MaintenanceCost[] @relation("ExpenseCreatedBy")
+  expensesReviewed MaintenanceCost[] @relation("ExpenseReviewedBy")
+  aiAnalysisFeedback AIAnalysis[] @relation("AiAnalysisFeedback")
+
+  @@index([role])
+}
+
+// ======================================================
+// OWNER
+// ======================================================
+
+model Owner {
+  id String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName String
+  lastName  String
+  phone     String?
+
+  properties Property[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ======================================================
+// TENANT
+// ======================================================
+
+model Tenant {
+  id String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName String
+  lastName  String
+  phone     String?
+
+  leases Lease[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ======================================================
+// TECHNICIAN
+// ======================================================
+
+model Technician {
+  id String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName   String
+  lastName    String
+  phone       String?
+  companyName String?
+
+  isActive     Boolean                 @default(true)
+  availability TechnicianAvailability  @default(AVAILABLE)
+
+  skills TechnicianSkill[]
+
+  workOrders WorkOrder[]
+
+  expenses MaintenanceCost[]
+
+  aiRecommendations AIAnalysis[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([availability])
+}
+
+// ======================================================
+// TECHNICIAN SKILLS
+// ======================================================
+
+model TechnicianSkill {
+  id String @id @default(uuid())
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  skill MaintenanceCategory
+
+  createdAt DateTime @default(now())
+
+  @@unique([technicianId, skill])
+  @@index([skill])
+}
+
+// ======================================================
+// PROPERTY
+// ======================================================
+
+model Property {
+  id String @id @default(uuid())
+
+  ownerId String
+  owner   Owner  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name         String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  postalCode   String
+  country      String
+
+  propertyType PropertyType
+  status       PropertyStatus @default(ACTIVE)
+
+  units Unit[]
+
+  maintenanceRequests MaintenanceRequest[]
+
+  assets Asset[]
+
+  inspections Inspection[]
+
+  expenses MaintenanceCost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([city])
+}
+
+// ======================================================
+// UNIT
+// ======================================================
+
+model Unit {
+  id String @id @default(uuid())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  unitNumber String
+  floor      Int?
+
+  bedrooms     Int?
+  bathrooms    Int?
+  squareMeters Float?
+
+  status UnitStatus @default(VACANT)
+
+  leases Lease[]
+
+  maintenanceRequests MaintenanceRequest[]
+
+  assets Asset[]
+
+  inspections Inspection[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, unitNumber])
+  @@index([propertyId])
+}
+
+// ======================================================
+// LEASE
+// ======================================================
+
+model Lease {
+  id String @id @default(uuid())
+
+  unitId String
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  startDate DateTime
+  endDate   DateTime?
+
+  status LeaseStatus @default(PENDING)
+
+  rentAmount    Decimal  @db.Decimal(10, 2)
+  depositAmount Decimal? @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unitId])
+  @@index([tenantId])
+  @@index([status])
+}
+
+// ======================================================
+// MAINTENANCE REQUEST
+// ======================================================
+
+model MaintenanceRequest {
+  id String @id @default(uuid())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  unitId String?
+  unit   Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  reportedByUserId String
+  reportedBy       User   @relation("ReportedBy", fields: [reportedByUserId], references: [id])
+
+  title       String
+  description String
+
+  category MaintenanceCategory
+  priority MaintenancePriority @default(MEDIUM)
+  status   MaintenanceStatus   @default(OPEN)
+
+  resolvedAt DateTime?
+
+  attachments MaintenanceAttachment[]
+
+  aiAnalyses AIAnalysis[]
+
+  aiConversations AIConversation[]
+
+  workOrders WorkOrder[]
+
+  costs MaintenanceCost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([reportedByUserId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+}
+
+// ======================================================
+// MAINTENANCE ATTACHMENT
+// ======================================================
+
+model MaintenanceAttachment {
+  id String @id @default(uuid())
+
+  maintenanceRequestId String
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+
+  uploadedByUserId String
+  uploadedBy       User   @relation("UploadedBy", fields: [uploadedByUserId], references: [id])
+
+  kind AttachmentKind @default(REQUEST)
+
+  fileUrl  String
+  fileName String
+  fileType String
+
+  analyses AIAnalysis[]
+
+  createdAt DateTime @default(now())
+
+  @@index([maintenanceRequestId])
+  @@index([workOrderId])
+  @@index([kind])
+}
+
+// ======================================================
+// AI ANALYSIS
+// ======================================================
+
+model AIAnalysis {
+  id String @id @default(uuid())
+
+  maintenanceRequestId String
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  attachmentId String?
+  attachment   MaintenanceAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+
+  source AiAnalysisSource @default(TEXT)
+
+  /// AI recommendation only — never overwrites MaintenanceRequest.priority/category
+  category MaintenanceCategory
+  priority MaintenancePriority
+
+  summary           String
+  possibleCause     String?
+  recommendedAction String?
+
+  visibleIssue  String?
+  severity      AiSeverity?
+  safetyWarning String?
+
+  safetyLevel        AiSafetyLevel?
+  safetyDisclaimer   String?
+  categoryConfidence Float?
+  priorityConfidence Float?
+  confidenceScore    Float?
+  humanReviewRecommended Boolean @default(false)
+
+  possibleDuplicate      Boolean @default(false)
+  relatedRequestIds      Json?
+  recurringIssueDetected Boolean @default(false)
+  recurringInsight       String?
+
+  recommendedTechnicianId     String?
+  recommendedTechnician       Technician? @relation(fields: [recommendedTechnicianId], references: [id], onDelete: SetNull)
+  technicianRecommendReason   String?
+
+  typicalCostEstimate  Decimal? @db.Decimal(10, 2)
+  costCurrency         String?  @default("EUR")
+  costInsightNote      String?
+  unusuallyExpensive   Boolean  @default(false)
+
+  ownerFinalPriority     MaintenancePriority?
+  ownerAcceptedPriority  Boolean?
+  feedbackUseful         AiFeedbackUsefulness?
+  feedbackNote           String?
+  feedbackAt             DateTime?
+  feedbackByUserId       String?
+  feedbackBy             User?     @relation("AiAnalysisFeedback", fields: [feedbackByUserId], references: [id], onDelete: SetNull)
+
+  model String?
+
+  createdAt DateTime @default(now())
+
+  @@index([maintenanceRequestId])
+  @@index([attachmentId])
+  @@index([source])
+  @@index([recommendedTechnicianId])
+  @@index([createdAt])
+}
+
+// ======================================================
+// AI CONVERSATION
+// ======================================================
+
+model AIConversation {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  maintenanceRequestId String?
+  maintenanceRequest   MaintenanceRequest? @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  messages AIMessage[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([maintenanceRequestId])
+}
+
+// ======================================================
+// AI MESSAGE
+// ======================================================
+
+model AIMessage {
+  id String @id @default(uuid())
+
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    AIMessageRole
+  content String
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+// ======================================================
+// WORK ORDER
+// ======================================================
+
+model WorkOrder {
+  id String @id @default(uuid())
+
+  maintenanceRequestId String
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  technicianId String
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Restrict)
+
+  status WorkOrderStatus @default(ASSIGNED)
+
+  description     String?
+  diagnosis       String?
+  workPerformed   String?
+  materialsUsed   String?
+  additionalNotes String?
+
+  laborHours Decimal? @db.Decimal(6, 2)
+
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  appointments Appointment[]
+
+  costs MaintenanceCost[]
+
+  completionAttachments MaintenanceAttachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([maintenanceRequestId])
+  @@index([technicianId])
+  @@index([status])
+}
+
+// ======================================================
+// APPOINTMENT
+// ======================================================
+
+model Appointment {
+  id String @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+
+  status AppointmentStatus @default(SCHEDULED)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workOrderId])
+  @@index([scheduledStart])
+}
+
+// ======================================================
+// MAINTENANCE COST
+// ======================================================
+
+model MaintenanceCost {
+  id String @id @default(uuid())
+
+  maintenanceRequestId String
+  maintenanceRequest   MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  technicianId String?
+  technician   Technician? @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+
+  createdByUserId String
+  createdBy       User   @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  description String
+
+  amount   Decimal @db.Decimal(10, 2)
+  currency String  @default("EUR")
+
+  costType CostType
+  status   ExpenseStatus @default(PENDING)
+
+  expenseDate DateTime @default(now())
+
+  receiptPath     String?
+  receiptFileName String?
+  receiptFileType String?
+
+  reviewedByUserId String?
+  reviewedBy       User?     @relation("ExpenseReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  reviewNote       String?
+
+  /// When set, this row is an adjustment/reversal of an approved expense (immutable original).
+  adjustsExpenseId String?
+  adjustsExpense   MaintenanceCost?  @relation("ExpenseAdjustments", fields: [adjustsExpenseId], references: [id], onDelete: Restrict)
+  adjustments      MaintenanceCost[] @relation("ExpenseAdjustments")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([maintenanceRequestId])
+  @@index([propertyId])
+  @@index([technicianId])
+  @@index([workOrderId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([costType])
+  @@index([expenseDate])
+  @@index([adjustsExpenseId])
+}
+
+// ======================================================
+// ASSET
+// ======================================================
+
+model Asset {
+  id String @id @default(uuid())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  unitId String?
+  unit   Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  name     String
+  category String
+
+  brand        String?
+  model        String?
+  serialNumber String?
+
+  purchaseDate     DateTime?
+  installationDate DateTime?
+  warrantyExpiry   DateTime?
+
+  status AssetStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([category])
+}
+
+// ======================================================
+// INSPECTION
+// ======================================================
+
+model Inspection {
+  id String @id @default(uuid())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  unitId String?
+  unit   Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  inspectorId String
+  inspector   User   @relation(fields: [inspectorId], references: [id], onDelete: Restrict)
+
+  inspectionDate DateTime
+
+  status InspectionStatus @default(SCHEDULED)
+
+  notes String?
+
+  items InspectionItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([inspectorId])
+  @@index([inspectionDate])
+}
+
+// ======================================================
+// INSPECTION ITEM
+// ======================================================
+
+model InspectionItem {
+  id String @id @default(uuid())
+
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  category    String
+  description String
+
+  condition ConditionStatus
+
+  notes    String?
+  photoUrl String?
+
+  createdAt DateTime @default(now())
+
+  @@index([inspectionId])
+}
+
+// ======================================================
+// NOTIFICATION
+// ======================================================
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title   String
+  message String
+
+  type NotificationType
+
+  entityType String?
+  entityId   String?
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ======================================================
+// AUDIT LOG
+// ======================================================
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  action      String
+  entityType  String
+  entityId    String
+  description String?
+
+  oldValues Json?
+  newValues Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
