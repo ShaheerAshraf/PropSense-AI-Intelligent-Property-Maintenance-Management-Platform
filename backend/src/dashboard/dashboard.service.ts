@@ -4,7 +4,6 @@ import {
   LeaseStatus,
   MaintenancePriority,
   MaintenanceStatus,
-  Prisma,
   UnitStatus,
   UserRole,
   WorkOrderStatus,
@@ -564,7 +563,10 @@ export class DashboardService {
         category: c.category,
         count: c._count._all,
       })),
-      averageConfidence: avgConfidence._avg.confidenceScore,
+      averageConfidence:
+        avgConfidence._avg.confidenceScore == null
+          ? null
+          : Number(avgConfidence._avg.confidenceScore),
       recommendedPriorities: this.toCountMap(priorities, 'priority'),
       safetyLevels: Object.fromEntries(
         safetyLevels
@@ -724,8 +726,8 @@ export class DashboardService {
         total: row.total,
       })),
       monthlyTrends: monthlyTrends.map((row) => ({
-        period: row.period.toISOString(),
-        total: row.total,
+        period: new Date(row.period).toISOString(),
+        total: Number(row.total),
       })),
       costPerRequest: byRequest.map((row) => ({
         maintenanceRequestId: row.request_id,
@@ -786,30 +788,44 @@ export class DashboardService {
     ownerId: string,
     granularity: TrendGranularity,
   ) {
-    const trunc = Prisma.raw(
+    // Avoid Prisma.raw() — it can fail with the Prisma 7 driver adapter on Render.
+    const rows =
       granularity === 'day'
-        ? `'day'`
+        ? await this.prisma.$queryRaw<Array<{ bucket: Date; count: number }>>`
+            SELECT date_trunc('day', mr."createdAt") AS bucket,
+                   COUNT(*)::int AS count
+            FROM "MaintenanceRequest" mr
+            JOIN "Property" p ON p.id = mr."propertyId"
+            WHERE p."ownerId" = ${ownerId}
+              AND mr."createdAt" >= NOW() - INTERVAL '12 months'
+            GROUP BY 1
+            ORDER BY 1 ASC
+          `
         : granularity === 'week'
-          ? `'week'`
-          : `'month'`,
-    );
-
-    const rows = await this.prisma.$queryRaw<
-      Array<{ bucket: Date; count: number }>
-    >`
-      SELECT date_trunc(${trunc}, mr."createdAt") AS bucket,
-             COUNT(*)::int AS count
-      FROM "MaintenanceRequest" mr
-      JOIN "Property" p ON p.id = mr."propertyId"
-      WHERE p."ownerId" = ${ownerId}
-        AND mr."createdAt" >= NOW() - INTERVAL '12 months'
-      GROUP BY 1
-      ORDER BY 1 ASC
-    `;
+          ? await this.prisma.$queryRaw<Array<{ bucket: Date; count: number }>>`
+              SELECT date_trunc('week', mr."createdAt") AS bucket,
+                     COUNT(*)::int AS count
+              FROM "MaintenanceRequest" mr
+              JOIN "Property" p ON p.id = mr."propertyId"
+              WHERE p."ownerId" = ${ownerId}
+                AND mr."createdAt" >= NOW() - INTERVAL '12 months'
+              GROUP BY 1
+              ORDER BY 1 ASC
+            `
+          : await this.prisma.$queryRaw<Array<{ bucket: Date; count: number }>>`
+              SELECT date_trunc('month', mr."createdAt") AS bucket,
+                     COUNT(*)::int AS count
+              FROM "MaintenanceRequest" mr
+              JOIN "Property" p ON p.id = mr."propertyId"
+              WHERE p."ownerId" = ${ownerId}
+                AND mr."createdAt" >= NOW() - INTERVAL '12 months'
+              GROUP BY 1
+              ORDER BY 1 ASC
+            `;
 
     return rows.map((row) => ({
-      period: row.bucket.toISOString(),
-      count: row.count,
+      period: new Date(row.bucket).toISOString(),
+      count: Number(row.count),
     }));
   }
 
