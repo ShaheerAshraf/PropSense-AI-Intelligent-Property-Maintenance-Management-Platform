@@ -16,6 +16,7 @@ export class CreateUnitDto {
 
   @IsOptional()
   @IsInt()
+  @Min(0)
   floor?: number;
 
   @IsOptional()

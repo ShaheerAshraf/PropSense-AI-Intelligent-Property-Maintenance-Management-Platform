@@ -12,12 +12,13 @@ import {
 } from '../../components/ui';
 import { api } from '../../lib/api';
 import { COST_TYPES, EXPENSE_STATUSES, labelize } from '../../lib/constants';
-import { formatDate, formatMoney } from '../../lib/format';
+import { formatDate, formatMoney, clampNonNegativeInput } from '../../lib/format';
 
 type AdjustmentDraft = {
   costType: (typeof COST_TYPES)[number];
   description: string;
   amount: string;
+  direction: 'increase' | 'decrease';
 };
 
 export function ExpensesPage() {
@@ -38,6 +39,7 @@ export function ExpensesPage() {
         costType: 'OTHER',
         description: '',
         amount: '',
+        direction: 'decrease',
       }
     );
   }
@@ -98,10 +100,14 @@ export function ExpensesPage() {
     setBusyId(id);
     setError(null);
     try {
+      const abs = Math.abs(Number(draft.amount));
+      if (Number.isNaN(abs) || abs <= 0) {
+        throw new Error('Amount must be greater than zero');
+      }
       await api.createExpenseAdjustment(token, id, {
         costType: draft.costType,
         description: draft.description.trim(),
-        amount: Number(draft.amount),
+        amount: draft.direction === 'decrease' ? -abs : abs,
       });
       setAdjustments((prev) => {
         const next = { ...prev };
@@ -276,9 +282,30 @@ export function ExpensesPage() {
                                 />
                               </label>
                               <label className="field">
-                                Signed amount
+                                Direction
+                                <select
+                                  value={draft.direction}
+                                  onChange={(e) =>
+                                    setAdjustments((prev) => ({
+                                      ...prev,
+                                      [ex.id]: {
+                                        ...draft,
+                                        direction: e.target.value as
+                                          | 'increase'
+                                          | 'decrease',
+                                      },
+                                    }))
+                                  }
+                                >
+                                  <option value="decrease">Decrease</option>
+                                  <option value="increase">Increase</option>
+                                </select>
+                              </label>
+                              <label className="field">
+                                Amount
                                 <input
                                   type="number"
+                                  min={0.01}
                                   step="0.01"
                                   value={draft.amount}
                                   onChange={(e) =>
@@ -286,12 +313,14 @@ export function ExpensesPage() {
                                       ...prev,
                                       [ex.id]: {
                                         ...draft,
-                                        amount: e.target.value,
+                                        amount: clampNonNegativeInput(
+                                          e.target.value,
+                                        ),
                                       },
                                     }))
                                   }
                                   required
-                                  placeholder="e.g. -25.00"
+                                  placeholder="e.g. 25.00"
                                 />
                               </label>
                               <button

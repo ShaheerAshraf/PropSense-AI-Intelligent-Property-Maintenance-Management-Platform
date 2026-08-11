@@ -13,7 +13,7 @@ import {
 } from '../../components/ui';
 import { api } from '../../lib/api';
 import { COST_TYPES, labelize } from '../../lib/constants';
-import { formatDateTime, formatMoney } from '../../lib/format';
+import { formatDateTime, formatMoney, clampNonNegativeInput } from '../../lib/format';
 
 export function AssignmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -361,10 +361,12 @@ export function AssignmentDetailPage() {
               Amount
               <input
                 type="number"
-                min="0.01"
+                min={0.01}
                 step="0.01"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) =>
+                  setAmount(clampNonNegativeInput(e.target.value))
+                }
                 required
               />
             </label>

@@ -51,3 +51,12 @@ export function formatPercent(value: number | null | undefined) {
   const pct = value <= 1 ? value * 100 : value;
   return `${pct.toFixed(0)}%`;
 }
+
+/** Keep number <input> values at zero or above (empty string allowed). */
+export function clampNonNegativeInput(value: string): string {
+  if (value.trim() === '' || value === '.') return value;
+  const n = Number(value);
+  if (Number.isNaN(n)) return value;
+  if (n < 0) return '0';
+  return value;
+}

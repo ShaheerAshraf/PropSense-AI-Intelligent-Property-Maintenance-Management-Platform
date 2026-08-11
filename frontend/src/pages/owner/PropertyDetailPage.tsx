@@ -16,7 +16,7 @@ import {
   UNIT_STATUSES,
   labelize,
 } from '../../lib/constants';
-import { formatDate, formatMoney } from '../../lib/format';
+import { formatDate, formatMoney, clampNonNegativeInput } from '../../lib/format';
 
 type UnitLease = {
   unitId: string;
@@ -399,9 +399,14 @@ export function PropertyDetailPage() {
             Floor
             <input
               type="number"
+              min={0}
+              step={1}
               value={unitForm.floor}
               onChange={(e) =>
-                setUnitForm((f) => ({ ...f, floor: e.target.value }))
+                setUnitForm((f) => ({
+                  ...f,
+                  floor: clampNonNegativeInput(e.target.value),
+                }))
               }
             />
           </label>
@@ -409,9 +414,14 @@ export function PropertyDetailPage() {
             Bedrooms
             <input
               type="number"
+              min={0}
+              step={1}
               value={unitForm.bedrooms}
               onChange={(e) =>
-                setUnitForm((f) => ({ ...f, bedrooms: e.target.value }))
+                setUnitForm((f) => ({
+                  ...f,
+                  bedrooms: clampNonNegativeInput(e.target.value),
+                }))
               }
             />
           </label>
@@ -419,9 +429,14 @@ export function PropertyDetailPage() {
             Bathrooms
             <input
               type="number"
+              min={0}
+              step={1}
               value={unitForm.bathrooms}
               onChange={(e) =>
-                setUnitForm((f) => ({ ...f, bathrooms: e.target.value }))
+                setUnitForm((f) => ({
+                  ...f,
+                  bathrooms: clampNonNegativeInput(e.target.value),
+                }))
               }
             />
           </label>
@@ -429,10 +444,14 @@ export function PropertyDetailPage() {
             Square meters
             <input
               type="number"
+              min={0}
               step="0.1"
               value={unitForm.squareMeters}
               onChange={(e) =>
-                setUnitForm((f) => ({ ...f, squareMeters: e.target.value }))
+                setUnitForm((f) => ({
+                  ...f,
+                  squareMeters: clampNonNegativeInput(e.target.value),
+                }))
               }
             />
           </label>
@@ -577,9 +596,14 @@ export function PropertyDetailPage() {
               Floor
               <input
                 type="number"
+                min={0}
+                step={1}
                 value={unitEdit.floor}
                 onChange={(e) =>
-                  setUnitEdit((f) => ({ ...f, floor: e.target.value }))
+                  setUnitEdit((f) => ({
+                    ...f,
+                    floor: clampNonNegativeInput(e.target.value),
+                  }))
                 }
               />
             </label>
@@ -587,9 +611,14 @@ export function PropertyDetailPage() {
               Bedrooms
               <input
                 type="number"
+                min={0}
+                step={1}
                 value={unitEdit.bedrooms}
                 onChange={(e) =>
-                  setUnitEdit((f) => ({ ...f, bedrooms: e.target.value }))
+                  setUnitEdit((f) => ({
+                    ...f,
+                    bedrooms: clampNonNegativeInput(e.target.value),
+                  }))
                 }
               />
             </label>
@@ -597,9 +626,14 @@ export function PropertyDetailPage() {
               Bathrooms
               <input
                 type="number"
+                min={0}
+                step={1}
                 value={unitEdit.bathrooms}
                 onChange={(e) =>
-                  setUnitEdit((f) => ({ ...f, bathrooms: e.target.value }))
+                  setUnitEdit((f) => ({
+                    ...f,
+                    bathrooms: clampNonNegativeInput(e.target.value),
+                  }))
                 }
               />
             </label>
@@ -607,10 +641,14 @@ export function PropertyDetailPage() {
               Square meters
               <input
                 type="number"
+                min={0}
                 step="0.1"
                 value={unitEdit.squareMeters}
                 onChange={(e) =>
-                  setUnitEdit((f) => ({ ...f, squareMeters: e.target.value }))
+                  setUnitEdit((f) => ({
+                    ...f,
+                    squareMeters: clampNonNegativeInput(e.target.value),
+                  }))
                 }
               />
             </label>
@@ -725,7 +763,10 @@ export function PropertyDetailPage() {
               step="0.01"
               value={leaseForm.rentAmount}
               onChange={(e) =>
-                setLeaseForm((f) => ({ ...f, rentAmount: e.target.value }))
+                setLeaseForm((f) => ({
+                  ...f,
+                  rentAmount: clampNonNegativeInput(e.target.value),
+                }))
               }
             />
           </label>

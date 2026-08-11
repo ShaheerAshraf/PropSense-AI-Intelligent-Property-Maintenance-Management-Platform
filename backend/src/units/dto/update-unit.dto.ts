@@ -17,6 +17,7 @@ export class UpdateUnitDto {
 
   @IsOptional()
   @IsInt()
+  @Min(0)
   floor?: number | null;
 
   @IsOptional()
