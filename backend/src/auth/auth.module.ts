@@ -14,13 +14,23 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow<string>('JWT_SECRET'),
-        signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ??
-            '7d') as `${number}d`,
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.getOrThrow<string>('JWT_SECRET');
+        const isProduction = process.env.NODE_ENV === 'production';
+        const isPlaceholder = secret === 'replace-with-a-long-random-secret';
+        if (isProduction && (isPlaceholder || secret.length < 32)) {
+          throw new Error(
+            'JWT_SECRET must be a unique value of at least 32 characters in production',
+          );
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ??
+              '7d') as `${number}d`,
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

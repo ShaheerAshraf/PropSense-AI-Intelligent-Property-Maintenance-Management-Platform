@@ -7,10 +7,11 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
+      # Local development only. Do not expose this service on a public host.
       POSTGRES_PASSWORD: postgrespassword
       POSTGRES_DB: property_db
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

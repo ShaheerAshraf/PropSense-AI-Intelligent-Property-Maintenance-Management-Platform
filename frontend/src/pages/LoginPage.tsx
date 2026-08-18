@@ -70,7 +70,7 @@ export function LoginPage() {
         <p className="demo-hint">
           Demo accounts (password <strong>Password123!</strong>):
           <br />
-          ownera@test.com · tenanta@test.com · techa@test.com
+          owner@test.com · tenant@test.com · tech@test.com
         </p>
       </div>
     </main>

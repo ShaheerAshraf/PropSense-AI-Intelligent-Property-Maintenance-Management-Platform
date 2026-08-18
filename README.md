@@ -136,3 +136,32 @@ Tenant Notified
 **AI:** Google Gemini API
 **Storage:** Supabase Storage
 
+## Local setup
+
+1. Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`.
+2. Fill in real values for `DATABASE_URL`, `JWT_SECRET`, Supabase, and Gemini. Never commit `.env` files.
+3. Start Postgres: `docker compose up -d`
+4. In `backend/`: `npm install`, then `npx prisma migrate deploy` and `npm run seed`
+5. Run the API: `npm run start:dev`
+6. In `frontend/`: `npm install` and `npm run dev`
+
+Seeded demo logins (local only) all use password `Password123!`:
+
+- `owner@test.com`
+- `tenant@test.com`
+- `tech@test.com`
+
+Do not run the seed against a production database.
+
+## Making this repository public
+
+The git history does not contain live API keys, database passwords, or customer data. `.env` is gitignored.
+
+Before you deploy a live instance (whether or not the source is public):
+
+- Generate a unique `JWT_SECRET` (32+ characters). Production refuses the example placeholder.
+- Set `CORS_ORIGIN` to your frontend origin(s), for example `https://your-app.example`.
+- Keep `SUPABASE_SERVICE_ROLE_KEY` and `GEMINI_API_KEY` in the host environment only.
+- Keep the Postgres port private. Compose binds it to `127.0.0.1` for local use.
+- Public registration currently lets anyone create an Owner, Tenant, or Technician account. That is fine for a demo; lock it down before a real deployment.
+
